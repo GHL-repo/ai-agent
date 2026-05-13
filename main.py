@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from functions.call_function import available_functions
+from prompts import system_prompt
+
 
 def get_api_key():
     load_dotenv()
@@ -26,6 +29,9 @@ def generate_content(client, args, messages):
     response = client.models.generate_content(
         model="gemini-2.5-flash",
         contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions], system_instruction=system_prompt
+        ),
     )
 
     if args.verbose:
@@ -35,6 +41,13 @@ def generate_content(client, args, messages):
             print("Response tokens: ", response.usage_metadata.candidates_token_count)
         else:
             raise RuntimeError("No usage metadata found")
+
+    f_calls = response.function_calls
+
+    if f_calls is not None:
+        for call in f_calls:
+            print(f"Calling function: {call.name}({call.args})")
+
     print("Response: ", response.text)
 
 
