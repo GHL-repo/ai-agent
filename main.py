@@ -1,11 +1,12 @@
 import argparse
 import os
+from logging import raiseExceptions
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from functions.call_function import available_functions
+from functions.call_function import available_functions, call_function
 from prompts import system_prompt
 
 
@@ -44,9 +45,19 @@ def generate_content(client, args, messages):
 
     f_calls = response.function_calls
 
+    f_results_list = []
     if f_calls is not None:
         for call in f_calls:
-            print(f"Calling function: {call.name}({call.args})")
+            function_call_result = call_function(call, args.verbose)
+            if not function_call_result.parts:
+                raise Exception("No function call results")
+            if function_call_result.parts[0].function_response is None:
+                raise Exception("Function response is None")
+            if function_call_result.parts[0].function_response.response is None:
+                raise Exception("Function response is None")
+            f_results_list.append(function_call_result.parts[0])
+            if args.verbose:
+                print(f"-> {function_call_result.parts[0].function_response.response}")
 
     print("Response: ", response.text)
 
