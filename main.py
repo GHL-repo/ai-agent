@@ -1,6 +1,6 @@
 import argparse
 import os
-from logging import raiseExceptions
+import sys
 
 from dotenv import load_dotenv
 from google import genai
@@ -59,7 +59,7 @@ def generate_content(client, args, messages):
             if args.verbose:
                 print(f"-> {function_call_result.parts[0].function_response.response}")
 
-    print("Response: ", response.text)
+    return response, f_results_list
 
 
 def main():
@@ -68,7 +68,20 @@ def main():
     args = get_user_prompt()
     messages = [types.Content(role="user", parts=[types.Part(text=args.user_prompt)])]
 
-    generate_content(client, args, messages)
+    for _ in range(20):
+        response, function_responses = generate_content(client, args, messages)
+        if response.candidates:
+            for candidate in response.candidates:
+                if candidate.content is not None:
+                    messages.append(candidate.content)
+        if response.function_calls:
+            messages.append(types.Content(role="user", parts=function_responses))
+        else:
+            print(response.text)
+            break
+    else:
+        print("Max iterations have been reached")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
